@@ -20,7 +20,7 @@ employees reporting to the manager or contained withtin the department.
 from exception import *
 
 
-class Employee(object):
+class _Employee(object):
     """The class defining an employee."""
 
     KIND_ALLOCATION = {
@@ -72,7 +72,7 @@ class Employee(object):
         return '{} {}'.format(self._kind, self._name)
 
 
-class Report(object):
+class _Report(object):
     """The class defining a report. A report is the relationship between an
     employee and their manager.
     """
@@ -118,11 +118,11 @@ class Department(object):
         department_head - the name of an employee that acts as the head of
         the department
         """
-        self._employees = []
+        self._employees = {}
         self._reports = {}
         self._name = name
-        self._department_head = Employee('Manager', department_head)
-        self.add_employee(self._department_head)
+        self._department_head = department_head
+        self.add_employee('Manager', department_head)
 
     @property
     def name(self):
@@ -140,38 +140,51 @@ class Department(object):
     def reports(self):
         return self._reports
 
-    def add_employee(self, employee):
+    def get_employee(self, name):
+        """Retreive an employee instance by name from the department."""
+        try:
+            return self._employees[name]
+        except KeyError:
+            return None
+
+    def add_employee(self, kind, name):
         """Add an employee to the department."""
-        if employee in self._employees:
+        if name in self._employees.keys():
             raise EADepartmentError('Employee already exists.')
-        self._employees.append(employee)
+        employee = _Employee(kind, name)
+        self._employees[name] = employee
         self._reports[employee] = []
 
-    def add_report(self, report):
+    def add_report(self, manager_name, employee_name):
         """Add a report to the department."""
-        if not(report.manager in self._employees
-            and report.employee in self._employees):
+        manager = self.get_employee(manager_name)
+        employee = self.get_employee(employee_name)
+        if manager is None or employee is None:
             raise EADepartmentError('Employee missing from department.')
+        report = _Report(manager, employee)
         for reports in self._reports.values():
             if report.employee in reports:
                 raise EADepartmentError('Employee already has a direct report.')
         self._reports[report.manager].append(report.employee)
 
-    def allocation_for_manager(self, manager, level=None):
+    def allocation_for_manager(self, manager_name, level=None):
         """Calculates the total allocation for a manager and all reports to
         the level specified.
 
         Arguments:
-        manager - manager to calculate allocation for
+        manager - manager_name to calculate allocation for
         level - how deep in the report hierarchy to calculate to (level >= 0,
         level == None will calculate all the way down)
         """
         result = 0
+        manager = self.get_employee(manager_name)
+        if manager is None:
+            return None
         if level is None or level > 0:
             if level is not None:
                 level -= 1
             for employee in self._reports[manager]:
-                result += self.allocation_for_manager(employee, level)
+                result += self.allocation_for_manager(employee.name, level)
         result += manager.allocation
         return result
 
@@ -183,8 +196,8 @@ class Department(object):
         level - how deep in the report hierarchy to calculate to (level >= 0,
         level == None will calculate all the way down)
         """
-        if len(self._reports[self._department_head]) == 0:
-            raise EADepartmentError('No employees report to the department head.')
+        if len(self._reports[self.get_employee(self._department_head)]) == 0:
+            raise EADepartmentError('Department head has no direct reports.')
         return self.allocation_for_manager(self._department_head, level)
 
     def __hash__(self):
