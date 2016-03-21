@@ -31,3 +31,5 @@ print(department.allocation_for_manager('Manager B Name'))
 print(department.allocation())
 # prints 2100
 ```
+
+Running Unit Tests: `python test.py -v`
